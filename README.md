@@ -5,6 +5,7 @@ tags: [design, wechat, 公众号, 排版, 图文生成, 模板]
 metadata:
   openclaw:
     requires: ['env:WEIPAIBAN_API_KEY']
+    optional: ['env:JIMENG_ACCESS_KEY', 'env:JIMENG_SECRET_KEY', 'skill:jimeng-ai', 'bin:python3', 'bin:rembg']
 ---
 
 # 微排版
@@ -44,6 +45,23 @@ metadata:
 
 ## 安全与权限
 
-- 需要 `WEIPAIBAN_API_KEY` 环境变量（`sk-` 开头），在 [微排版 API Keys 页面](https://weipaiban.cn/settings/api-keys) 生成
-- 关键步骤（模板选择、配色确认、文本确认、图片分类确认）均需用户明确确认后才继续
-- 调用外部 API：微排版平台 API（模板搜索、作品管理、CDN 上传）、即梦 API（图片生成）
+### 必需
+
+- **凭据**：`WEIPAIBAN_API_KEY`（`sk-` 开头），在 [微排版 API Keys 页面](https://weipaiban.cn/settings/api-keys) 生成
+- **外部服务**：微排版 API（`weipaiban.cn`）——模板搜索、作品管理、CDN 上传
+- **磁盘写入**：`/tmp/weipaiban-task-{workId}/`（任务中间结果，任务结束后可清理）
+
+### 可选（仅用于 Step 8 图片生成阶段）
+
+- **凭据**：`JIMENG_ACCESS_KEY`、`JIMENG_SECRET_KEY`（即梦 API）
+- **依赖技能**：`jimeng-ai`
+- **本地二进制**：`python3`（≥3.9）、`rembg`
+  - 默认使用 `u2netp` 轻量模型（固定 `-m u2netp`），如果需要提高精度，可以尝试 `u2net` 模型（固定 `-m u2net`）
+  - 首次运行将下载 `~/.u2net/u2netp.onnx`（约 4.7MB）
+- **外部服务**：即梦 API（图片生成）
+
+### 降级行为与运行时安装
+
+- **缺失可选依赖时**：Step 8 由用户选择跳过，作品保留模板原图，其他步骤正常执行
+- **用户同意原则**：技能不会在未经用户同意的情况下执行 `pip install` 或安装其他技能。Step 8a 会先检测依赖，缺失时进入交互点由用户选择「安装」「跳过图片生成」或「取消」
+- **关键交互点**：模板选择、配色确认、文本确认、图片分类确认、依赖安装确认、失败重试确认均需用户明确回复

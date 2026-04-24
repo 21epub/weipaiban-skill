@@ -1,7 +1,7 @@
 ---
 name: weipaiban-skill
 description: 微排版技能 - 通过 AI 自动创建微信图文作品，支持模板搜索、配色方案、文本生成和图片替换
-version: 1.0.0
+version: 1.1.0
 user-invocable: true
 metadata:
   openclaw:
@@ -10,6 +10,20 @@ metadata:
       env:
         - WEIPAIBAN_API_KEY
     primaryEnv: WEIPAIBAN_API_KEY
+    optionalEnv:
+      - JIMENG_ACCESS_KEY
+      - JIMENG_SECRET_KEY
+    optionalSkills:
+      - jimeng-ai
+    optionalBinaries:
+      - python3
+      - rembg
+    externalServices:
+      - weipaiban.cn
+      - jimeng.com
+    writes:
+      - /tmp/weipaiban-task-*/
+      - ~/.u2net/u2netp.onnx
 ---
 
 # 微排版技能
@@ -23,9 +37,32 @@ metadata:
 
 所有 API 请求都需要在 Header 中携带认证信息：
 
-```
+```text
 Authorization: Bearer $WEIPAIBAN_API_KEY
 ```
+
+## 运行时依赖
+
+微排版技能将依赖项按"必需 / 可选"区分，透明告知用户并支持降级执行。详细说明见 [references/runtime-dependencies.md](references/runtime-dependencies.md)。
+
+### 必需依赖
+
+- **凭据**：`WEIPAIBAN_API_KEY`
+- **外部服务**：`weipaiban.cn`（模板搜索、作品管理、CDN 上传）
+- **磁盘写入**：`/tmp/weipaiban-task-{workId}/`（任务中间结果，任务结束后可清理）
+
+### 可选依赖（仅 Step 8 图片生成阶段使用）
+
+- **凭据**：`JIMENG_ACCESS_KEY` / `JIMENG_SECRET_KEY`
+- **依赖技能**：`jimeng-ai`（通过 clawhub 或 find-skill 安装）
+- **本地二进制**：
+  - `python3`（≥3.9）
+  - `rembg`：仅使用 `u2netp` 轻量模型（固定参数 `-m u2netp`），首次运行下载 `~/.u2net/u2netp.onnx`（约 4.7MB）
+- **外部服务**：即梦 API（图片生成）
+
+### 缺失可选依赖时的降级行为
+
+**如果未配置 JIMENG_* 或未安装 jimeng-ai / rembg，Step 8（图片生成）将被跳过**，作品保留模板原图；其他步骤（模板选择、配色、文本替换、作品更新）仍正常执行。Step 8a 在执行前会检测依赖并进入交互点，由用户选择「安装」「跳过图片生成」或「取消」。**技能不会在未经用户同意的情况下自动执行 `pip install` 或安装其他技能。**
 
 ## 交互规则
 
@@ -73,19 +110,21 @@ Authorization: Bearer $WEIPAIBAN_API_KEY
 
 当用户请求使用微排版技能创建图文作品时，严格按照以下步骤**顺序**执行。**每个步骤开始时，才读取该步骤的详情文件**——禁止提前读取后续步骤文件。
 
-| 步骤      | 名称                 | 说明                                               | 交互点          | 详情                                                               |
-| --------- | -------------------- | -------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
-| Step 1    | 提取分类标签和关键词 | 从用户输入提取标签、关键词、具体要求               | -               | [steps/01-extract-tags.md](steps/01-extract-tags.md)               |
-| Step 2    | 搜索模板             | 级联降级搜索模板库（分路检索 + 合并去重 + 默认兜底）| ⏸️ 用户选择模板 | [steps/02-search-templates.md](steps/02-search-templates.md)       |
-| Step 3-4  | 创建作品 + 获取元素  | 克隆模板、获取元素、自动生成模板画像               | - (连续执行)    | [steps/03-create-and-parse.md](steps/03-create-and-parse.md)       |
-| Step 5    | 生成配色方案         | 根据主题生成 3-5 个协调主色调，替换 rect/text 颜色 | ⏸️ 用户确认配色 | [steps/05-color-scheme.md](steps/05-color-scheme.md)               |
-| Step 6    | 生成新文本           | 根据主题生成匹配长度和用途的替换文本               | ⏸️ 用户确认文本 | [steps/06-generate-text.md](steps/06-generate-text.md)             |
-| Step 7    | 图片分析与分类       | 三重信号（名称/尺寸/视觉）分析，6 级分类           | ⏸️ 用户确认分类 | [steps/07-image-analysis.md](steps/07-image-analysis.md)           |
-| Step 8a   | 图片提示词规划       | 根据分类构造每张图片的生成 prompt                  | -               | [steps/08a-image-prompts.md](steps/08a-image-prompts.md)           |
-| Step 8b   | 图片生成             | 逐张调用即梦 API 生成图片                          | -               | [steps/08b-image-generate.md](steps/08b-image-generate.md)         |
-| Step 8c   | 图片背景去除         | 使用 rembg 去背景（`u2netp`）并输出透明图          | -               | [steps/08c-image-bg-remove.md](steps/08c-image-bg-remove.md)       |
-| Step 8d   | 图片上传 CDN         | 逐张上传微排版素材库，汇总结果                     | ⏸️ 失败重试确认 | [steps/08d-image-upload.md](steps/08d-image-upload.md)             |
-| Step 9-10 | 更新作品 + 完成      | 汇总所有变更，批量提交更新，展示编辑链接           | -               | [steps/09-update-and-complete.md](steps/09-update-and-complete.md) |
+> **Step 8（图片生成）为可选阶段**：依赖 `jimeng-ai` 技能、`JIMENG_*` 凭据和本地 `rembg` 工具。缺失依赖时由用户选择跳过，作品将保留模板原图；其他步骤（配色、文本替换、作品更新）仍正常执行。
+
+| 步骤      | 名称                 | 说明                                                  | 交互点                   | 详情                                                               |
+| --------- | -------------------- | ----------------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
+| Step 1    | 提取分类标签和关键词 | 从用户输入提取标签、关键词、具体要求                  | -                        | [steps/01-extract-tags.md](steps/01-extract-tags.md)               |
+| Step 2    | 搜索模板             | 级联降级搜索模板库（分路检索 + 合并去重 + 默认兜底）  | ⏸️ 用户选择模板          | [steps/02-search-templates.md](steps/02-search-templates.md)       |
+| Step 3-4  | 创建作品 + 获取元素  | 克隆模板、获取元素、自动生成模板画像                  | - (连续执行)             | [steps/03-create-and-parse.md](steps/03-create-and-parse.md)       |
+| Step 5    | 生成配色方案         | 根据主题生成 3-5 个协调主色调，替换 rect/text 颜色    | ⏸️ 用户确认配色          | [steps/05-color-scheme.md](steps/05-color-scheme.md)               |
+| Step 6    | 生成新文本           | 根据主题生成匹配长度和用途的替换文本                  | ⏸️ 用户确认文本          | [steps/06-generate-text.md](steps/06-generate-text.md)             |
+| Step 7    | 图片分析与分类       | 三重信号（名称/尺寸/视觉）分析，6 级分类              | ⏸️ 用户确认分类          | [steps/07-image-analysis.md](steps/07-image-analysis.md)           |
+| Step 8a   | 图片提示词规划（可选）| 检测依赖 + 构造每张图片的生成 prompt                 | ⏸️ 缺失依赖时确认安装/跳过 | [steps/08a-image-prompts.md](steps/08a-image-prompts.md)           |
+| Step 8b   | 图片生成（可选）     | 逐张调用即梦 API 生成图片                             | -                        | [steps/08b-image-generate.md](steps/08b-image-generate.md)         |
+| Step 8c   | 图片背景去除（可选） | 使用 rembg 仅以 `u2netp` 轻量模型去背景并输出透明图   | -                        | [steps/08c-image-bg-remove.md](steps/08c-image-bg-remove.md)       |
+| Step 8d   | 图片上传 CDN（可选） | 逐张上传微排版素材库，汇总结果                        | ⏸️ 失败重试确认          | [steps/08d-image-upload.md](steps/08d-image-upload.md)             |
+| Step 9-10 | 更新作品 + 完成      | 汇总所有变更，批量提交更新，展示编辑链接              | -                        | [steps/09-update-and-complete.md](steps/09-update-and-complete.md) |
 
 ## 断点恢复
 
@@ -101,7 +140,7 @@ Authorization: Bearer $WEIPAIBAN_API_KEY
 | 01 / 02      | 从对应步骤重新开始                                                       |
 | 03           | 检查 elements.json 和 template-profile.json 是否完整，完整则跳到 Step 5  |
 | 05 / 06 / 07 | 检查对应输出文件是否存在，存在则展示给用户确认，否则重新执行该步骤       |
-| 08a          | 检查 image-prompts.json 是否完整，完整则跳到 08b                         |
+| 08a          | 若 `meta.json` 中 `skipImageGeneration=true`，直接跳到 Step 9；否则重新执行依赖检测交互点 |
 | 08b          | 读取 image-progress.json，仅对 status=pending 的图片重新生成             |
 | 08c          | 读取 image-progress.json，仅对需透明且 status=generated 的图片执行去白底 |
 | 08d          | 读取 image-progress.json，仅对未上传的图片执行上传                       |

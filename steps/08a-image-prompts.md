@@ -13,20 +13,63 @@
 
 ## 前置依赖检查
 
-图片生成流程依赖以下工具，在继续之前必须先确认可用：
+图片生成流程依赖若干**可选组件**——缺失时不会自动安装，必须先经过用户同意。详细说明见 [../references/runtime-dependencies.md](../references/runtime-dependencies.md)。
 
-### 1. 即梦技能（jimeng-ai）
+### 1. 检测依赖可用性
 
-- 检查即梦技能是否已安装，如果未安装，通过 clawhub 或 find-skill 技能找到 jimeng-ai 技能并安装
-- 确认 `JIMENG_ACCESS_KEY` 和 `JIMENG_SECRET_KEY` 环境变量已配置
+**只检测，不执行任何安装或修改操作。**
 
-### 2. Python 与 rembg
+| 依赖                  | 检测方式                                                       | 用途                           |
+| --------------------- | -------------------------------------------------------------- | ------------------------------ |
+| `JIMENG_ACCESS_KEY`   | 环境变量是否存在且非空                                         | 即梦 API 鉴权                  |
+| `JIMENG_SECRET_KEY`   | 环境变量是否存在且非空                                         | 即梦 API 鉴权                  |
+| `jimeng-ai` 技能      | 使用 clawhub 或 find-skill 查询是否已安装（不执行安装动作）    | 图片生成能力                   |
+| `python3`             | `python3 --version`（退出码 0）                                | rembg 运行环境                 |
+| `rembg` CLI           | `rembg --help` 或 `python3 -m rembg --help`（退出码 0）        | 背景去除（仅使用 `u2netp`）    |
 
-- 确认 `python3` 可用：`python3 --version`
-- 确认 rembg CLI 可用：`rembg --help`（若 PATH 不可见，可用 `python3 -m rembg --help`）
-- 如果 rembg 不可用，执行 `pip3 install "rembg[cpu,cli]"` 进行安装
+### 2. 缺失任一依赖时 ⏸️ 强制交互点
 
-**任一依赖缺失都应阻止继续，必须先帮助用户补齐。**
+向用户展示检测结果表，并**必须等待用户明确回复**才能继续：
+
+```text
+依赖检测结果：
+- JIMENG_ACCESS_KEY：✅ 已配置 / ❌ 未配置
+- JIMENG_SECRET_KEY：✅ 已配置 / ❌ 未配置
+- jimeng-ai 技能：  ✅ 已安装 / ❌ 未安装
+- python3：         ✅ 可用 / ❌ 不可用
+- rembg CLI：       ✅ 可用 / ❌ 不可用（首次运行将下载 ~/.u2net/u2netp.onnx，约 4.7MB）
+
+图片生成阶段（Step 8）为可选阶段。请选择：
+
+1. 「安装」—— 由我引导安装缺失的依赖。将要执行的命令会提前展示，执行前再次确认：
+   - jimeng-ai 技能：通过 clawhub 或 find-skill 技能安装
+   - rembg：pip3 install "rembg[cpu,cli]"（首次运行 rembg 会下载 u2netp 模型到 ~/.u2net/）
+   - JIMENG_* 凭据：需由你在即梦平台自行申请后配置到环境变量
+
+2. 「跳过图片生成」—— 跳过 Step 8a ~ 8d，作品保留模板原图，直接进入 Step 9（配色和文本替换仍会应用）。
+
+3. 「取消」—— 终止任务。
+```
+
+#### 用户选择「安装」的处理
+
+1. 对每条需要执行命令的缺失项，展示完整命令并再次要求用户确认后才执行
+2. 安装完成后重新检测；若 JIMENG_* 仍未配置，告知用户手动配置环境变量后重新触发任务
+3. 全部通过检测后，才能继续后续步骤
+
+#### 用户选择「跳过图片生成」的处理
+
+1. 将 `image-progress.json` 中所有 `skip=false` 的图片的 `status` 设为 `"skipped"`
+2. 在 `meta.json` 中写入 `skipImageGeneration: true`
+3. **跳过本步骤剩余流程，直接跳到 Step 9**（不执行 8b/8c/8d）
+
+#### 用户选择「取消」的处理
+
+终止任务，向用户确认任务目录是否需要保留。
+
+### 3. 依赖齐备时继续
+
+若全部依赖可用，直接进入下方"初始化进度计划"。
 
 ## 初始化进度计划
 
