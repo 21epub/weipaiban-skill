@@ -11,8 +11,9 @@ metadata:
         - WEIPAIBAN_API_KEY
     primaryEnv: WEIPAIBAN_API_KEY
     optionalEnv:
-      - JIMENG_ACCESS_KEY
-      - JIMENG_SECRET_KEY
+      - VOLCENGINE_AK
+      - VOLCENGINE_SK
+      - VOLCENGINE_TOKEN
     optionalSkills:
       - jimeng-ai
     optionalBinaries:
@@ -53,7 +54,7 @@ Authorization: Bearer $WEIPAIBAN_API_KEY
 
 ### 可选依赖（仅 Step 8 图片生成阶段使用）
 
-- **凭据**：`JIMENG_ACCESS_KEY` / `JIMENG_SECRET_KEY`
+- **凭据**：`VOLCENGINE_AK`（必需），`VOLCENGINE_SK` 与 `VOLCENGINE_TOKEN` 至少配置其一（永久凭证用 SK；临时凭证 AKTP/STS 用 TOKEN）
 - **依赖技能**：`jimeng-ai`（通过 clawhub 或 find-skill 安装）
 - **本地二进制**：
   - `python3`（≥3.9）
@@ -62,7 +63,7 @@ Authorization: Bearer $WEIPAIBAN_API_KEY
 
 ### 缺失可选依赖时的降级行为
 
-**如果未配置 JIMENG_* 或未安装 jimeng-ai / rembg，Step 8（图片生成）将被跳过**，作品保留模板原图；其他步骤（模板选择、配色、文本替换、作品更新）仍正常执行。Step 8a 在执行前会检测依赖并进入交互点，由用户选择「安装」「跳过图片生成」或「取消」。**技能不会在未经用户同意的情况下自动执行 `pip install` 或安装其他技能。**
+**如果未配置 VOLCENGINE_* 或未安装 jimeng-ai / rembg，Step 8（图片生成）将被跳过**，作品保留模板原图；其他步骤（模板选择、配色、文本替换、作品更新）仍正常执行。Step 8a 在执行前会检测依赖并进入交互点，由用户选择「安装」「跳过图片生成」或「取消」。**技能不会在未经用户同意的情况下自动执行 `pip install` 或安装其他技能。**
 
 ## 交互规则
 
@@ -110,7 +111,7 @@ Authorization: Bearer $WEIPAIBAN_API_KEY
 
 当用户请求使用微排版技能创建图文作品时，严格按照以下步骤**顺序**执行。**每个步骤开始时，才读取该步骤的详情文件**——禁止提前读取后续步骤文件。
 
-> **Step 8（图片生成）为可选阶段**：依赖 `jimeng-ai` 技能、`JIMENG_*` 凭据和本地 `rembg` 工具。缺失依赖时由用户选择跳过，作品将保留模板原图；其他步骤（配色、文本替换、作品更新）仍正常执行。
+> **Step 8（图片生成）为可选阶段**：依赖 `jimeng-ai` 技能、`VOLCENGINE_*` 凭据和本地 `rembg` 工具。缺失依赖时由用户选择跳过，作品将保留模板原图；其他步骤（配色、文本替换、作品更新）仍正常执行。
 
 | 步骤      | 名称                 | 说明                                                  | 交互点                   | 详情                                                               |
 | --------- | -------------------- | ----------------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |

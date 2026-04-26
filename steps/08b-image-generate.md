@@ -26,6 +26,8 @@
 
 > **子代理任务**：生成一张图片并返回 URL。
 >
+> **前置假定**：`VOLCENGINE_AK` 与 `VOLCENGINE_SK` / `VOLCENGINE_TOKEN`（二选一）已通过 Step 8a 的依赖检测，子代理无需再次校验。
+>
 > **输入参数**：
 >
 > - elementId: {元素ID}

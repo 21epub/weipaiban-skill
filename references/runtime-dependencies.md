@@ -10,8 +10,9 @@
 | ---------- | --------------------- | ----------- | -------------------------------------- |
 | 凭据       | `WEIPAIBAN_API_KEY`   | 必需        | 微排版平台 API 鉴权                    |
 | 凭据       | `WEIPAIBAN_API_BASE`  | 可选        | 自定义微排版 API 地址（默认官方）      |
-| 凭据       | `JIMENG_ACCESS_KEY`   | 可选        | 即梦 API 鉴权（Step 8 图片生成）       |
-| 凭据       | `JIMENG_SECRET_KEY`   | 可选        | 即梦 API 鉴权（Step 8 图片生成）       |
+| 凭据       | `VOLCENGINE_AK`       | 可选\*      | 火山引擎鉴权（Step 8 必需）            |
+| 凭据       | `VOLCENGINE_SK`       | 可选\*      | 永久凭证鉴权（SK/TOKEN 二选一）        |
+| 凭据       | `VOLCENGINE_TOKEN`    | 可选\*      | 临时凭证（AKTP/STS）鉴权               |
 | 依赖技能   | `jimeng-ai`           | 可选        | 封装即梦图片生成调用                   |
 | 本地二进制 | `python3`（≥3.9）     | 可选        | 运行 rembg                             |
 | 本地二进制 | `rembg` CLI           | 可选        | 背景去除（仅使用 `u2netp` 轻量模型）   |
@@ -19,6 +20,8 @@
 | 外部服务   | 即梦 API              | 可选        | 根据 prompt 生成图片                   |
 | 磁盘写入   | `/tmp/weipaiban-task-{workId}/` | 必需 | 任务中间文件（元信息、图片、进度）     |
 | 磁盘写入   | `~/.u2net/u2netp.onnx`| 可选        | rembg u2netp 模型缓存（约 4.7MB）      |
+
+> \* 整体 Step 8（图片生成）为可选阶段；一旦启用，则 `VOLCENGINE_AK` 必需，且 `VOLCENGINE_SK` 与 `VOLCENGINE_TOKEN` 至少配置其一。
 
 ---
 
@@ -69,9 +72,12 @@ pip3 install "rembg[cpu,cli]"
 - **首次运行时**下载 `u2netp.onnx`（约 4.7MB）到 `~/.u2net/u2netp.onnx`
 - 本技能**固定**使用 `u2netp` 轻量模型（命令 `rembg i -m u2netp`），不会下载其他模型（如完整版 `u2net` 176MB）
 
-### 申请 `JIMENG_ACCESS_KEY` / `JIMENG_SECRET_KEY`
+### 申请 `VOLCENGINE_AK` / `VOLCENGINE_SK` / `VOLCENGINE_TOKEN`
 
-需在即梦平台自行申请。本技能不会通过 API 自动生成或读取密钥文件。
+需在火山引擎/即梦平台自行申请。本技能不会通过 API 自动生成或读取密钥文件。
+
+- **永久凭证**：在火山引擎控制台创建访问密钥，得到 `AKLT…` 开头的 AK 与对应的 SK，配置 `VOLCENGINE_AK` + `VOLCENGINE_SK`
+- **临时凭证（STS）**：通过 STS 接口换取临时凭证，得到 `AKTP…` 开头的 AK + Token，配置 `VOLCENGINE_AK` + `VOLCENGINE_TOKEN`（此时 SK 可省略）
 
 ---
 
@@ -88,7 +94,7 @@ pip3 install "rembg[cpu,cli]"
 ## 隔离与最小化凭据建议
 
 - **隔离运行**：若对隐私或磁盘占用有顾虑，建议在容器或沙箱环境中运行。任务目录 `/tmp/weipaiban-task-*/` 默认随系统重启清理；`~/.u2net/u2netp.onnx` 可以手动删除
-- **凭据最小化**：仅为微排版账号提供必要权限的 API Key。若使用即梦，建议创建有使用期限或调用配额限制的临时凭据
+- **凭据最小化**：仅为微排版账号提供必要权限的 API Key。若使用火山引擎/即梦，建议优先使用 STS 临时凭证（`VOLCENGINE_AK` + `VOLCENGINE_TOKEN`），并设定使用期限或调用配额限制
 - **任务目录清理**：任务完成后可手动执行 `rm -rf /tmp/weipaiban-task-{workId}/` 清理中间文件（技能本身不会主动删除，以便失败重试）
 
 ---

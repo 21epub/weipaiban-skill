@@ -5,7 +5,7 @@ tags: [design, wechat, 公众号, 排版, 图文生成, 模板]
 metadata:
   openclaw:
     requires: ['env:WEIPAIBAN_API_KEY']
-    optional: ['env:JIMENG_ACCESS_KEY', 'env:JIMENG_SECRET_KEY', 'skill:jimeng-ai', 'bin:python3', 'bin:rembg']
+    optional: ['env:VOLCENGINE_AK', 'env:VOLCENGINE_SK', 'env:VOLCENGINE_TOKEN', 'skill:jimeng-ai', 'bin:python3', 'bin:rembg']
 ---
 
 # 微排版
@@ -53,7 +53,7 @@ metadata:
 
 ### 可选（仅用于 Step 8 图片生成阶段）
 
-- **凭据**：`JIMENG_ACCESS_KEY`、`JIMENG_SECRET_KEY`（即梦 API）
+- **凭据**：`VOLCENGINE_AK`（必需），`VOLCENGINE_SK` 与 `VOLCENGINE_TOKEN` 至少配置其一（永久凭证用 SK；临时凭证 AKTP/STS 用 TOKEN）
 - **依赖技能**：`jimeng-ai`
 - **本地二进制**：`python3`（≥3.9）、`rembg`
   - 默认使用 `u2netp` 轻量模型（固定 `-m u2netp`），如果需要提高精度，可以尝试 `u2net` 模型（固定 `-m u2net`）
