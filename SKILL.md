@@ -1,7 +1,7 @@
 ---
 name: weipaiban-skill
 description: 微排版技能 - 通过 AI 自动创建微信图文作品，支持模板搜索、配色方案、文本生成和图片替换
-version: 1.1.0
+version: 1.2.0
 user-invocable: true
 metadata:
   openclaw:
