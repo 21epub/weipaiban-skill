@@ -15,6 +15,12 @@
 
 如果没有符合条件的图片（所有图片都不需要透明，或已处理完毕），直接跳到 Step 8d。
 
+## 执行门禁（必须遵守）
+
+- 仅对 `needsTransparent=true` 且 `status="generated"` 的条目执行去背景
+- 仅在 Step 8a 依赖检测通过且用户未取消图片阶段时执行
+- 本步骤禁止任何安装行为；检测失败必须走降级分支
+
 ## 前置依赖检查
 
 开始逐张处理前，确认依赖可用：
@@ -22,7 +28,7 @@
 1. `python3 --version` 可正常返回
 2. `rembg --help` 可正常返回（若 PATH 不可见，可用 `python3 -m rembg --help`）
 
-> 首次运行会下载 `u2netp` 轻量模型到 `~/.u2net/u2netp.onnx`（约 4.7MB），首张图会明显更慢。
+> 首次运行会下载 `u2netp` 轻量模型到 `~/.u2net/u2netp.onnx`（约 4.7MB），首张图会明显更慢。该写入仅在本步骤真实执行去背景时发生。
 
 **如果依赖检测失败**：说明用户在 Step 8a 的依赖交互点之后，环境发生了变化（例如 rembg 被卸载）。**禁止本步骤自行执行任何安装操作**——直接把所有 `needsTransparent=true` 且 `status="generated"` 的图片标记为 `bgRemoved=false`（保持 `status="generated"`），由 Step 8d 使用即梦原图 URL 上传，并向用户反馈：`⚠️ 检测到 rembg 不可用，本次跳过背景去除，使用原图上传`。然后直接进入 Step 8d。
 
@@ -36,6 +42,7 @@
 2. 执行去背景命令（保持串行，不并发）：
 
    ```bash
+   # 受控执行模板：仅在守卫条件满足时执行
    rembg i -m u2netp "{taskDir}/images/{elementId}_generated.png" "{taskDir}/images/{elementId}_nobg.png"
    ```
 

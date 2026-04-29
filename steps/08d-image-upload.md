@@ -11,6 +11,18 @@
 
 如果没有待上传的图片，直接跳到汇总环节。
 
+## 执行门禁与外传边界
+
+- 仅处理 `status="generated"` 或 `status="bg_removed"` 的当前图片条目
+- 上传前应确认用户未取消 Step 8 图片流程
+- 只上传当前图片文件或其 `jimengUrl`，不会上传任务目录下其他 JSON 文件
+
+## 数据发送范围（透明披露）
+
+- 文件上传接口：向 `/api/v1/assets/upload` 发送单张图片二进制（`file` 字段）与认证头
+- URL 抓取接口：向 `/api/v1/assets/fetch` 发送单个 `jimengUrl` 与认证头
+- 两类接口均不上传 `meta.json`、`elements.json`、`template-profile.json` 等任务文件
+
 ## 上传逻辑
 
 逐张上传，根据图片状态选择上传方式：
@@ -18,6 +30,7 @@
 ### a) 已去白底（status=bg_removed，localPath 存在）—— 使用文件上传接口
 
 ```bash
+# 受控执行模板：仅上传当前条目 localPath 指向的单张图片
 curl -s --max-time 30 -X POST \
   -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   -F "file=@{localPath}" \
@@ -27,6 +40,7 @@ curl -s --max-time 30 -X POST \
 ### b) 未去白底或不需透明（status=generated）—— 使用 URL fetch 接口
 
 ```bash
+# 受控执行模板：仅提交当前条目的 jimengUrl
 curl -s --max-time 30 -X POST \
   -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   -H "Content-Type: application/json" \

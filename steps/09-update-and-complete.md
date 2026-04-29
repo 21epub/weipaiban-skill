@@ -12,6 +12,23 @@
 
 ## Step 9：构建更新负载并提交
 
+## 执行门禁（必须遵守）
+
+- 仅在前置步骤产物齐备且用户未终止任务时提交更新
+- 本提交属于远端写操作，执行前应向用户展示变更摘要（配色/文本/图片数量）
+- 本文命令为受控执行模板，实际执行前必须替换占位值并校验 payload
+
+## 提交字段白名单（仅允许以下字段）
+
+- `elements.{textElementId}.text`
+- `elements.{textElementId}.fill`
+- `elements.{rectElementId}.fill`
+- `elements.{imageElementId}.image.src`
+- `elements.{slideshowElementId}.assets[].id`
+- `elements.{slideshowElementId}.assets[].src`
+
+除上述白名单外，不构造或发送其他元素属性，避免非预期改动。
+
 从三个变更文件合并构建最终更新负载：
 
 ### 合并规则
@@ -25,6 +42,7 @@
 ### 提交更新
 
 ```bash
+# 受控执行模板：仅提交白名单字段
 curl -s -X POST \
   -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   -H "Content-Type: application/json" \

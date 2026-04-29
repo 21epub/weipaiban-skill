@@ -15,6 +15,18 @@
 - 本步骤首轮搜索分为两路：仅 `search` 与仅 `tags`，每路最多取 5 条
 - **重要**：所有查询参数中的中文值必须进行 URL 编码。使用 curl 时请使用 `-G --data-urlencode` 自动处理编码。
 
+## 执行门禁（必须遵守）
+
+- 本文所有命令均为**受控执行模板**，仅在用户已明确进入微排版任务并同意继续时才可执行
+- 命令中的占位值（如 `关键词`、`类别标签`）必须先由当前任务数据替换，再执行
+- 若用户要求暂停、改词或终止，必须先停止调用 API，再等待下一次明确指令
+
+## 数据发送范围（透明披露）
+
+- 请求目标：`${WEIPAIBAN_API_BASE:-https://weipaiban.cn}/api/v1/templates*`
+- 发送字段：`Authorization` 头（Bearer Token）与查询参数（`search`、`tags`、`per_page`）
+- 不发送内容：任务目录中的本地文件（如 `elements.json`、`template-profile.json`）及图片二进制
+
 ## 搜索策略（按顺序执行）
 
 ### 2.1 分路搜索：仅 search + 仅 tags 并行
@@ -24,6 +36,7 @@
 #### 请求 A：仅关键词搜索（search）
 
 ```bash
+# 受控执行模板：执行前确认用户已同意继续
 curl -s -G -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   --data-urlencode "search=关键词" \
   --data-urlencode "per_page=5" \
@@ -33,6 +46,7 @@ curl -s -G -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
 #### 请求 B：仅标签搜索（tags）
 
 ```bash
+# 受控执行模板：执行前确认用户已同意继续
 curl -s -G -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   --data-urlencode "tags=类别标签" \
   --data-urlencode "per_page=5" \
@@ -53,6 +67,7 @@ curl -s -G -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
 两路搜索合并后仍无结果时，通过 API 获取系统默认模板：
 
 ```bash
+# 受控执行模板：执行前确认用户已同意继续
 curl -s -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   "${WEIPAIBAN_API_BASE:-https://weipaiban.cn}/api/v1/templates/default"
 ```

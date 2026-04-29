@@ -6,11 +6,23 @@
 
 从任务目录读取 `meta.json`，获取 `templateId` 和 `theme`。
 
+## 执行门禁与中止规则
+
+- Step 3-4.1 虽为连续步骤，但只允许在 Step 2 已完成用户模板选择后进入
+- 本文命令均为受控执行模板：仅在用户未要求暂停/取消时执行
+- 任一请求失败或用户中途明确中止时，停止后续自动步骤并返回当前状态
+
+## 数据发送范围（透明披露）
+
+- 发送到微排版 API 的数据仅包括：认证头、克隆标题、作品 ID、elements 更新内容
+- 不发送本地任务目录中的其他文件内容；本地 JSON 仅用于构建请求参数
+
 ## Step 3：从模板创建作品
 
 基于用户选择的模板创建新作品：
 
 ```bash
+# 受控执行模板：仅在已完成模板选择且用户未中止时执行
 curl -s -X POST \
   -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   -H "Content-Type: application/json" \
@@ -26,6 +38,12 @@ curl -s -X POST \
 mv /tmp/weipaiban-task-tmp-{时间戳} /tmp/weipaiban-task-{作品ID}
 ```
 
+说明：
+
+- 该重命名仅作用于 `/tmp/weipaiban-task-*` 任务目录命名规范化，便于断点恢复
+- 不会移动系统其他路径文件；任务结束后可由用户手动清理对应目录
+- 如重命名失败，保留原目录并停止进入后续步骤，避免路径不一致
+
 更新 `meta.json` 中的 `workId` 和 `taskDir` 为新路径。
 
 ## Step 4：获取简化元素数据
@@ -33,6 +51,7 @@ mv /tmp/weipaiban-task-tmp-{时间戳} /tmp/weipaiban-task-{作品ID}
 调用 parser 接口获取作品的简化元素数据：
 
 ```bash
+# 受控执行模板：仅在 Step 3 已成功获得作品 ID 后执行
 curl -s -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
   "${WEIPAIBAN_API_BASE:-https://weipaiban.cn}/api/v1/vectors/作品ID/parser"
 ```

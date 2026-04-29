@@ -47,7 +47,7 @@
 
 1. 「安装」—— 由我引导安装缺失的依赖。将要执行的命令会提前展示，执行前再次确认：
    - jimeng-ai 技能：通过 clawhub 或 find-skill 技能安装
-   - rembg：pip3 install "rembg[cpu,cli]"（首次运行 rembg 会下载 u2netp 模型到 ~/.u2net/）
+   - rembg：pip3 install "rembg[cpu,cli]~=2.0.67"（首次运行 rembg 会下载 u2netp 模型到 ~/.u2net/）
    - VOLCENGINE_* 凭据：需由你在火山引擎/即梦平台自行申请后配置到环境变量
 
 2. 「跳过图片生成」—— 跳过 Step 8a ~ 8d，作品保留模板原图，直接进入 Step 9（配色和文本替换仍会应用）。

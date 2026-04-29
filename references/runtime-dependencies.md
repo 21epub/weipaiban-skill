@@ -63,7 +63,7 @@
 ### 安装 `rembg`
 
 ```bash
-pip3 install "rembg[cpu,cli]"
+pip3 install "rembg[cpu,cli]~=2.0.67"
 ```
 
 **副作用**：
@@ -71,6 +71,15 @@ pip3 install "rembg[cpu,cli]"
 - 安装 `rembg`、`onnxruntime`（CPU 版本）、`pymatting` 等依赖
 - **首次运行时**下载 `u2netp.onnx`（约 4.7MB）到 `~/.u2net/u2netp.onnx`
 - 本技能**固定**使用 `u2netp` 轻量模型（命令 `rembg i -m u2netp`），不会下载其他模型（如完整版 `u2net` 176MB）
+
+### 版本升级流程（锁定版本维护）
+
+为降低供应链风险，`rembg` 采用精确版本锁定。升级时按以下流程执行：
+
+1. 在隔离环境评估新版本兼容性（命令参数、模型下载行为、处理质量）
+2. 通过 Step 8 全链路回归（8a/8b/8c/8d）验证稳定性
+3. 更新本文和 Step 8a 中的锁定版本号，保持文档口径一致
+4. 在变更记录中注明升级理由与验证范围
 
 ### 申请 `VOLCENGINE_AK` / `VOLCENGINE_SK` / `VOLCENGINE_TOKEN`
 
