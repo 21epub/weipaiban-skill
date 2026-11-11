@@ -1,7 +1,12 @@
 ---
 name: weipaiban
+slug: weipaiban
+displayName: 微排版交互作品
 description: 设计、制作并发布微排版交互作品，按所选 format 完成创意、素材准备、交互 HTML 与发布。图片默认从微排版 AI 素材库按一个 tag 取全量已发布图，再分配到作品里；用户也可以自行提供图片，或点名自己的生图技能。用于带中间固定层的三层视差滑动、背景容器加多层不同速度的 3D 视差滑动，后层上色板加竖向镂空滑动的滑动上色，每题单次单选的计分答题，左右封面点选展开的选择其一（二选一、四选一或六选一），以及点击播放后画布高度归零、依次承接的场景转场。
+summary: 按 format 设计、制作并发布微排版交互作品，覆盖视差滑动、滑动上色、计分答题、选择展开和场景转场。
 version: 2.0.0
+tags: [微排版, 交互作品, HTML]
+homepage: https://github.com/21epub/weipaiban-skill
 metadata:
   openclaw:
     emoji: '🧩'
