@@ -1,200 +1,55 @@
-# API 端点与响应格式参考
+# 作品发布 API（/api/v1/vectors/svg）
 
-所有 API 请求都需要在 Header 中携带认证信息：
+用户接口。HTML 方言见 [dialect.md](dialect.md)。
 
-```
-Authorization: Bearer $WEIPAIBAN_API_KEY
-```
+## 鉴权
 
-API 基础地址：`${WEIPAIBAN_API_BASE:-https://weipaiban.cn}`
+| Header          | 来源                | 说明                                    |
+| --------------- | ------------------- | --------------------------------------- |
+| `Authorization` | `WEIPAIBAN_API_KEY` | `Bearer <sk-...>`，订阅用户或 developer |
 
----
+key 以 `sk-` 开头，仅通过环境变量传递。用户登录微排版后，在 <https://weipaiban.cn/settings/api-keys> 创建或复制。`scripts/publish.py` 与取素材脚本共用 `scripts/api_base.py`：只接受 `https://weipaiban.cn`（含子域）或本机地址，并校验 TLS 证书。
 
-## 模板搜索响应
+## 创建
 
-`GET /api/v1/templates`
-
-```json
-{
-  "data": {
-    "items": [
-      {
-        "id": "模板ID",
-        "title": "模板标题",
-        "description": "模板描述",
-        "tags": ["标签1", "标签2"],
-        "thumbnail": "缩略图URL",
-        "publishedAt": "2026-01-01T00:00:00.000Z"
-      }
-    ],
-    "total": 10,
-    "page": 1,
-    "perPage": 5
-  }
-}
-```
-
-## 默认模板响应
-
-`GET /api/v1/templates/default`
+`POST ${WEIPAIBAN_API_BASE}/api/v1/vectors/svg`
 
 ```json
 {
-  "data": {
-    "id": "模板ID",
-    "title": "模板标题",
-    "description": "模板描述",
-    "tags": ["标签1", "标签2"],
-    "thumbnail": "缩略图URL",
-    "publishedAt": "2026-01-01T00:00:00.000Z"
-  }
+  "html": "<section data-name=\"作品\">...</section>",
+  "title": "春季开学刊",
+  "description": "可选说明"
 }
 ```
 
-## 克隆模板响应
+| 字段          | 必需 | 说明                     |
+| ------------- | ---- | ------------------------ |
+| `html`        | 是   | trim 后非空，**≤ 512KB** |
+| `title`       | 否   | 缺省「未命名作品」       |
+| `description` | 否   | 缺省 `''`                |
 
-`POST /api/v1/templates/{模板ID}/clone`
+元素 ≤ 300（含作品根 section）。
 
-请求体：`{"title": "作品标题"}`
+成功 HTTP 201：`data.id` / `data.title` / `data.createdAt` / `data.previewId`。
+编辑链接：`${WEIPAIBAN_API_BASE}/vectors/{id}`。
+预览链接：`${WEIPAIBAN_API_BASE}/links/{previewId}`（临时，约 6 小时）。
 
-```json
-{
-  "data": {
-    "id": "新作品ID",
-    "title": "作品标题",
-    "createdAt": "2026-01-01T00:00:00.000Z",
-    "updatedAt": "2026-01-01T00:00:00.000Z"
-  }
-}
-```
+## 修改（整份替换）
 
-## Parser 获取响应
+`PUT ${WEIPAIBAN_API_BASE}/api/v1/vectors/{id}/svg`
 
-`GET /api/v1/vectors/{作品ID}/parser`
+请求体与创建相同。用新 HTML 整份替换 `groups` / `elements`。
+仅所有者；已发布（`publishedAt` / `prepublishedAt` 非空）不可用。
+省略 `title` / `description` 则保留原值。成功 HTTP 200，同样返回 `previewId`。
 
-```json
-{
-  "data": {
-    "id": "作品ID",
-    "title": "作品标题",
-    "elements": [
-      {
-        "id": "元素ID",
-        "name": "标题文本",
-        "type": "text",
-        "text": "原始文本内容",
-        "charCount": 7,
-        "fill": "#333333"
-      },
-      {
-        "id": "元素ID",
-        "name": "背景色块",
-        "type": "rect",
-        "fill": "#d9d9d9",
-        "width": 750,
-        "height": 1200
-      },
-      {
-        "id": "元素ID",
-        "name": "背景图",
-        "type": "image",
-        "image": {
-          "src": "https://原始图片地址",
-          "width": 800,
-          "height": 600,
-          "ratio": "4:3"
-        }
-      },
-      {
-        "id": "元素ID",
-        "name": "轮播图",
-        "type": "slideshow",
-        "assets": [
-          {
-            "id": "asset1",
-            "title": "高山.jpg",
-            "src": "https://图片地址1",
-            "width": 1170,
-            "height": 1800,
-            "ratio": "13:20"
-          },
-          {
-            "id": "asset2",
-            "title": "草地.jpg",
-            "src": "https://图片地址2",
-            "width": 1170,
-            "height": 1800,
-            "ratio": "13:20"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+## 失败
 
-## Parser 更新响应
-
-`POST /api/v1/vectors/{作品ID}/parser`
-
-```json
-{
-  "data": {
-    "id": "作品ID",
-    "title": "作品标题",
-    "updatedAt": "2026-01-01T00:00:00.000Z"
-  }
-}
-```
-
-## CDN 上传响应
-
-`POST /api/v1/assets/fetch`
-
-请求体：`{"url": "图片URL"}`
-
-该接口基于文件内容 SHA1 哈希自动去重：相同图片重复上传返回 HTTP 200（已有记录），新图片上传返回 HTTP 201。
-
-成功响应：
-
-```json
-{
-  "data": {
-    "id": "资源ID",
-    "type": "image",
-    "name": "存储路径",
-    "title": "文件名",
-    "src": "https://svg-cdn.creatby.com/...",
-    "width": 800,
-    "height": 600,
-    "size": 123456,
-    "createdAt": "2026-01-01T00:00:00.000Z"
-  }
-}
-```
-
-错误响应（400/413/415/502/504）：
-
-```json
-{
-  "error": {
-    "message": "错误描述",
-    "code": 400
-  }
-}
-```
-
-## CDN 文件上传
-
-`POST /api/v1/assets/upload`
-
-请求格式：`multipart/form-data`，字段 `file` 为图片文件。
-
-```bash
-curl -s --max-time 30 -X POST \
-  -H "Authorization: Bearer $WEIPAIBAN_API_KEY" \
-  -F "file=@本地文件路径" \
-  "${WEIPAIBAN_API_BASE:-https://weipaiban.cn}/api/v1/assets/upload"
-```
-
-响应格式与 `/api/v1/assets/fetch` 相同（同样支持 SHA1 去重）。
+| 状态码 | 含义                                 | 处理                                                         |
+| ------ | ------------------------------------ | ------------------------------------------------------------ |
+| 400    | JSON 非法 / HTML 解析失败            | 对照 dialect.md：根 section、richText 非空、禁标签、300 上限 |
+| 401    | key 缺失/无效/过期                   | 请用户到 <https://weipaiban.cn/settings/api-keys> 创建或复制密钥，并更新 `WEIPAIBAN_API_KEY` |
+| 402    | 作品容量已满（仅创建）               | 清理作品或升级年卡                                           |
+| 403    | 未订阅且不是 developer               | 与其它 /api/v1 相同                                          |
+| 404    | 不存在/非所有者/已发布（仅修改）     | 核对 workId                                                  |
+| 413    | html 超 512KB 字符，或整包 JSON 过大 | 图片改用 CDN                                                 |
+| 429    | 限流                                 | 稍后重试                                                     |

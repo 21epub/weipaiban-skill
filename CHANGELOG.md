@@ -2,11 +2,41 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 规范，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [2.0.0] - 2026-11-11
+
+本次为破坏性升级。技能从「按模板克隆并改写元素」改为「按 format 设计、制作并发布整篇交互作品」。不保留 1.x 流程兼容层。
+
+### 新增
+
+- 六种 format：`layered-scroll`、`parallax-scroll`、`coloring-scroll`、`quiz`、`choice-expand`、`scene-transition`
+- 交互 HTML 方言、组件说明、素材契约与质量标准（`references/dialect.md`、`references/formats/`、`references/components/`、`references/task-contract.md` 等）
+- 脚本：`scripts/fetch_ai_assets.py`、`scripts/build_oss_src.py`、`scripts/upload_images.py`、`scripts/publish.py`、`scripts/pick_direction.py`
+- 默认图片来源改为微排版 AI 素材库：按一个 tag 拉取全部已发布图，再分配到槽位
+- 发布改为 `POST/PUT /api/v1/vectors/svg`，用整份 HTML 创建或替换未发布作品
+- 任务目录改为 `/tmp/weipaiban-{taskId}/`，阶段见 `task-contract.md`
+
+### 移除
+
+- 删除 `steps/` 下的模板搜索、克隆、配色、文本替换、图片分类与即梦生图流程
+- 删除 `references/error-handling.md`、`references/runtime-dependencies.md`、`examples/usage-example.md`
+- 不再依赖 `VOLCENGINE_*` 与 `jimeng-ai`；不再把 Step 8 作为可选生图阶段
+- 不再锁定 `rembg[cpu,cli]==2.0.67`。1.2 的「检测依赖后须用户同意才安装」门禁随图片生成阶段一起删除。技能不会自动安装 `rembg`；只在用户提供且需要透明的图片时才可选使用，模型为 `birefnet-general`
+- 库内素材不再重新上传、不再用 `rembg -m u2netp` 去背
+
+### 变更
+
+- `SKILL.md` 版本号改为 `2.0.0`，工作流、依赖声明和写入路径按 2.0 重写
+- 技能标识从 `weipaiban-skill` 改为 `weipaiban`。调用名变为 `/weipaiban`。仓库地址仍是 `21epub/weipaiban-skill`
+- `references/api-formats.md` 改为作品发布 API，不再描述模板搜索、克隆和 parser
+- `README.md` 改为 2.0 的人类说明；agent 元数据只保留在 `SKILL.md`
+- `README.md` 补充开源仓库 `https://github.com/21epub/weipaiban-skill` 与微信交流群二维码（`assets/contact-me-qr.png`）。`SKILL.md` 只指向这两处，不把二维码写入作品
+- 说明 `WEIPAIBAN_API_KEY` 在 <https://weipaiban.cn/settings/api-keys> 创建或复制。缺密钥或 401 时，文档和脚本都把这个地址告诉用户
+
 ## [1.2.0] - 2026-04-29
 
 本次发布聚焦安全与执行治理：在不牺牲流程可用性的前提下，补齐受控执行门禁、数据外传边界说明、写入最小化声明，并强化 rembg 供应链版本管理。
 
-### 新增（1.1.0）
+### 新增
 
 - `SKILL.md` 新增「执行门禁（安全基线）」章节，明确强制确认动作、受控自动动作与中止优先规则
 - `SKILL.md` 新增「写入最小化说明」，明确 `/tmp` 与 `~/.u2net` 的触发条件、用途与清理策略
@@ -14,7 +44,7 @@
 - `steps/09-update-and-complete.md` 新增提交 payload 字段白名单，限制仅更新 `elements` 允许字段
 - `references/runtime-dependencies.md` 新增 rembg 锁定版本的升级流程（评估 → 回归 → 更新锁定版本号）
 
-### 变更（1.1.0）
+### 变更
 
 - Step 2/3/8c/8d/9 的关键命令块改为「受控执行模板」语义，要求执行前确认条件与占位参数替换
 - Step 3 补充任务目录重命名的范围、失败处理与清理说明，降低路径操作误解风险
@@ -55,7 +85,3 @@
 ## [1.0.0] - 2026-04-24
 
 - 微排版技能初始版本
-
-[1.2.0]: https://github.com/21epub/weipaiban-skill/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/21epub/weipaiban-skill/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/21epub/weipaiban-skill/releases/tag/v1.0.0

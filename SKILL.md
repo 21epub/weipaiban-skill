@@ -1,169 +1,135 @@
 ---
-name: weipaiban-skill
-description: 微排版技能 - 通过 AI 自动创建微信图文作品，支持模板搜索、配色方案、文本生成和图片替换
-version: 1.2.0
-user-invocable: true
+name: weipaiban
+description: 设计、制作并发布微排版交互作品，按所选 format 完成创意、素材准备、交互 HTML 与发布。图片默认从微排版 AI 素材库按一个 tag 取全量已发布图，再分配到作品里；用户也可以自行提供图片，或点名自己的生图技能。用于带中间固定层的三层视差滑动、背景容器加多层不同速度的 3D 视差滑动，后层上色板加竖向镂空滑动的滑动上色，每题单次单选的计分答题，左右封面点选展开的选择其一（二选一、四选一或六选一），以及点击播放后画布高度归零、依次承接的场景转场。
+version: 2.0.0
 metadata:
   openclaw:
-    emoji: '🎨'
+    emoji: '🧩'
     requires:
+      bins:
+        - python3
       env:
         - WEIPAIBAN_API_KEY
     primaryEnv: WEIPAIBAN_API_KEY
     optionalEnv:
-      - VOLCENGINE_AK
-      - VOLCENGINE_SK
-      - VOLCENGINE_TOKEN
-    optionalSkills:
-      - jimeng-ai
+      - WEIPAIBAN_API_BASE
     optionalBinaries:
-      - python3
       - rembg
     externalServices:
       - weipaiban.cn
-      - jimeng.com
     writes:
-      - /tmp/weipaiban-task-*/
-      - ~/.u2net/u2netp.onnx
+      - /tmp/weipaiban-*/
+      - ~/.cache/weipaiban/direction-history.jsonl
 ---
 
-# 微排版技能
+# 微排版交互作品
 
-你是微排版 AI 助手，能够帮助用户基于模板快速创建和编辑微信图文作品。
+从主题到发布完成一件**整篇交互作品**。作品先选择 format，再按该 format 的设计规则和 HTML 壳制作。图片默认来自微排版已发布 AI 素材，按一个 tag 取完再分配使用。
 
-## 环境变量
+## 路径与依赖
 
-- `WEIPAIBAN_API_KEY`：微排版平台 API 密钥（必须），格式为 `sk-` 开头，如果没有，需要用户去 <https://weipaiban.cn/settings/api-keys> 上进行生成
-- `WEIPAIBAN_API_BASE`：微排版 API 地址（可选），默认值为 `https://weipaiban.cn`
+`SKILL_DIR` 是本 `SKILL.md` 所在目录的绝对路径。脚本和参考资料均从这里读取，不依赖当前工作目录。
 
-所有 API 请求都需要在 Header 中携带认证信息：
+用户提供图片，或点名生图的成品需要入库时，读 [references/upload.md](references/upload.md)，用本技能自带的 `scripts/upload_images.py`。素材库里的图不上传。用户点名了某个生图技能时，只读取那个技能并按其流程出图。未点名时不查找、不调用其它生图技能。
 
-```text
-Authorization: Bearer $WEIPAIBAN_API_KEY
+| 变量                 | 何时需要           | 说明                        |
+| -------------------- | ------------------ | --------------------------- |
+| `WEIPAIBAN_API_KEY`  | 取素材、上传、发布 | `sk-` 开头；只从环境读取。用户在 [API 密钥](https://weipaiban.cn/settings/api-keys) 创建或复制 |
+| `WEIPAIBAN_API_BASE` | 可选               | 默认 `https://weipaiban.cn` |
+| `python3`            | 全部脚本           | 必需。`rembg` 只在用户图片需要去背时可选，技能不会自动安装 |
+
+不要把 key 或临时鉴权 URL 写入任务文件。
+
+环境里没有 `WEIPAIBAN_API_KEY`，或接口返回 401 时，告诉用户：登录微排版，打开 <https://weipaiban.cn/settings/api-keys>，创建或复制以 `sk-` 开头的密钥，再设为该环境变量。不要向用户索要密钥后写入任务文件，也不要猜测密钥。
+
+## 输入
+
+- 必需：主题或内容。
+- 可选：`format`、受众、必含内容、`category`、`workId`、tag、用户图片、占位图要求，以及用户点名的生图技能。
+- `workId` 表示整份替换未发布作品；省略则创建。
+
+## 工作流
+
+### 1. 选择 format ⏸️
+
+先读 [format 清单](references/formats/index.md)。
+
+- 用户已明确合法 `format`：视为已选择。
+- 未指定：展示所有 format 的名称、体验和适用场景，推荐一个并等待选择。即使当前只有一种，也要让用户确认；“直接开始 / 你定”表示接受推荐。
+
+选定后只读该 format 文档，不读其它 format。任务目录为 `/tmp/weipaiban-{taskId}/`，契约见 [task-contract.md](references/task-contract.md)。
+
+### 2. 创意设计与素材方案 ⏸️
+
+Agent 是主创。根据内容、受众与所选 format 原创叙事、视觉方向、层级、交互和素材槽位，不套固定主题模板。图片槽位按该 format 需要的角色列出，具体哪一张图等素材池返回后再定。
+
+仅当用户要求随机方向或创意受阻时，才可运行：
+
+```bash
+python3 "$SKILL_DIR/scripts/pick_direction.py" --format {format} [--category "{类别}"]
 ```
 
-## 运行时依赖
+脚本输出是版式灵感，不是必须照抄的视觉系统，也不是出图提示词。format 规则始终优先。它会把抽过的方向追加到 `~/.cache/weipaiban/direction-history.jsonl`，用来避开最近几次重复。
 
-微排版技能将依赖项按"必需 / 可选"区分，透明告知用户并支持降级执行。详细说明见 [references/runtime-dependencies.md](references/runtime-dependencies.md)。
+形成 `design-brief.md`、`design.json` 和 `asset-request.json` 草案。`imageSource` 默认 `ai-assets`，并写上拟用的一个 tag。对照 [quality-bar.md](references/quality-bar.md) 与 [wechat-dark-color.md](references/wechat-dark-color.md) 自检。向用户展示 format、层级职责、叙事路径、主要交互、视觉方向、tag 和素材槽位，等待确认。明确说“直接开始”可跳过本次等待。
 
-### 必需依赖
+### 3. 准备图片
 
-- **凭据**：`WEIPAIBAN_API_KEY`
-- **外部服务**：`weipaiban.cn`（模板搜索、作品管理、CDN 上传）
-- **磁盘写入**：`/tmp/weipaiban-task-{workId}/`（任务中间结果，任务结束后可清理）
+设计确认后读 [assets.md](references/assets.md)。
 
-### 可选依赖（仅 Step 8 图片生成阶段使用）
+- 默认用确认过的 tag 拉取该 tag 的全部已发布图，再按角色分到槽位，并用 `build_oss_src.py` 得到最终 CDN。库内图不重新上传，也不去背。
+- 素材池为空时先停。用户可以改 tag、改交图片、改点名生图技能，或明确继续并接受占位图。
+- 用户已经给了图：那些槽位按 [upload.md](references/upload.md) 上传。用户点名了生图技能：只按该技能出这些槽位的图，再上传。临时链不进 manifest 或 HTML。
+- 某个槽位在池里没有对应类型时，该槽位使用占位图，并记入成品摘要。format 已规定可改用 SVG 的元素，改为 SVG，不占位硬上。
 
-- **凭据**：`VOLCENGINE_AK`（必需），`VOLCENGINE_SK` 与 `VOLCENGINE_TOKEN` 至少配置其一（永久凭证用 SK；临时凭证 AKTP/STS 用 TOKEN）
-- **依赖技能**：`jimeng-ai`（通过 clawhub 或 find-skill 安装）
-- **本地二进制**：
-  - `python3`（≥3.9）
-  - `rembg`：仅使用 `u2netp` 轻量模型（固定参数 `-m u2netp`），首次运行下载 `~/.u2net/u2netp.onnx`（约 4.7MB）
-- **外部服务**：即梦 API（图片生成）
+### 4. 制作交互 HTML
 
-### 缺失可选依赖时的降级行为
+每次必读 [dialect.md](references/dialect.md) 和已选 format 文档；只在实际使用某组件时读取对应 [components](references/components/) 文档。
 
-**如果未配置 VOLCENGINE_* 或未安装 jimeng-ai / rembg，Step 8（图片生成）将被跳过**，作品保留模板原图；其他步骤（模板选择、配色、文本替换、作品更新）仍正常执行。Step 8a 在执行前会检测依赖并进入交互点，由用户选择「安装」「跳过图片生成」或「取消」。**技能不会在未经用户同意的情况下自动执行 `pip install` 或安装其他技能。**
+- 严格按 format 的壳语法、层级和设计规则写作。
+- `<image href>` / `<img src>` 原样使用 manifest 的处理后 CDN URL。
+- 文末保留弱化的 AI 声明：“文章部分内容由AI辅助设计和制作”。
+- HTML 写入 `{taskDir}/work.html`，`meta.currentStep=work-ready`。
 
-### 写入最小化说明
+### 5. 发布
 
-- `/tmp/weipaiban-task-{workId}/`：仅用于当前任务中间文件与断点恢复，默认不会触达其他业务路径
-- `~/.u2net/u2netp.onnx`：仅在用户启用 Step 8 且实际执行去背景时才会触发首次缓存写入
-- 任务完成后可按需手动清理：`rm -rf /tmp/weipaiban-task-{workId}/`，模型缓存可单独删除
+HTML 写完后直接发布，不要停下来等确认。发布成功后再把标题、format、各职责层内容、交互组件、所用 tag、素材来源与占位回退、元素预算，以及 `preview`、`url` 给用户。用户看过预览后可以再改。
 
-## 交互规则
+```bash
+python3 "$SKILL_DIR/scripts/publish.py" \
+  --body-file "{taskDir}/work.html" \
+  --title "{标题}" \
+  --description "{说明}"
 
-**⚠️ 逐步确认模式**：每个标记了 ⏸️ 的步骤都是强制交互点，必须暂停等待用户明确回复后才能继续执行下一步。禁止跳过交互点或自动连续执行多个步骤。
-
-## 执行门禁（安全基线）
-
-为平衡体验与安全，执行遵循“默认连续执行 + 关键动作确认”的门禁：
-
-1. **强制确认动作**：模板选择（Step 2 交互点）、依赖安装（Step 8a 交互点）、失败重试策略（Step 8d 交互点）、最终提交前变更摘要确认（Step 9）
-2. **受控自动动作**：仅在强制确认已完成且用户未中止时，允许连续执行 Step 3-4.1 与 Step 8b-8d 的非交互子步骤
-3. **中止优先**：用户任意时刻提出暂停/取消，立即停止后续外部请求与写入动作
-4. **占位命令规则**：步骤文件中的命令为模板示例，执行前必须替换占位值并校验目标路径/参数
-
-## 执行协议
-
-**⚠️ 严格逐步执行**：本技能采用"按需加载、逐步执行"模式，必须遵循以下规则：
-
-1. **一次只执行一个步骤**：当前步骤完全完成前，禁止读取或执行下一个步骤的详情文件
-2. **按需读取**：执行每个步骤时才读取该步骤的详情文件（如 `steps/01-extract-tags.md`），禁止提前读取后续步骤
-3. **禁止批量加载**：禁止一次性读取多个步骤文件，每个步骤的详情文件在需要时才加载
-4. **步骤完成确认**：每个步骤完成后确认产出数据写入任务目录，再进入下一步骤
-5. **上下文精简**：进入新步骤时，从任务目录读取该步所需的最小数据，不保留上一步骤文件的完整指令文本或上下文中的大段数据
-
-## 任务目录
-
-每次执行微排版任务时，使用临时任务目录在磁盘上持久化中间结果，步骤间通过文件传递数据，避免在上下文中累积大量数据。
-
-**目录路径**：`/tmp/weipaiban-task-{workId}/`（Step 1 时 workId 未知，使用时间戳创建临时目录；Step 3 获得 workId 后重命名）
-
-**目录结构**：
-
-```
-/tmp/weipaiban-task-{workId}/
-├── meta.json                    # 全局元信息（workId, theme, currentStep 等）
-├── elements.json                # Step 4 原始 elements 完整数据
-├── template-profile.json        # Step 4.1 模板画像
-├── color-changes.json           # Step 5 配色变更
-├── text-changes.json            # Step 6 文本变更
-├── image-classifications.json   # Step 7 图片分类结果
-├── image-prompts.json           # Step 8a 提示词计划
-├── image-progress.json          # Step 8b/8c/8d 逐张进度追踪
-├── update-payload.json          # Step 9 最终提交负载
-└── images/                      # 图片处理临时文件
+python3 "$SKILL_DIR/scripts/publish.py" \
+  --work-id "{workId}" \
+  --body-file "{taskDir}/work.html" \
+  --title "{标题}"
 ```
 
-**使用规则**：
+成功后把 `meta.currentStep` 改为 `done`，返回 `preview`、`url` 与 `taskDir`。保留任务目录以便续作，除非用户要求删除。
 
-- 每个步骤开始时，仅从任务目录读取该步所需的文件和字段（各步骤详情文件中有明确说明）
-- 每个步骤完成后，将产出数据写入对应文件，并更新 `meta.json` 的 `currentStep`
-- 禁止将完整 elements JSON、template_profile 等大段数据保持在上下文中——需要时从文件重新读取
+## 失败边界
 
-## 工作流程
+- 发布 400：按 dialect、format 壳、组件结构、512KB 与 300 元素上限自查。
+- 401：请用户到 <https://weipaiban.cn/settings/api-keys> 创建或复制 `sk-` 密钥，并更新 `WEIPAIBAN_API_KEY`。403 通常是未订阅。402 是作品容量上限。
+- 修改 404：核对 `workId`、所有权和作品是否已经发布。
+- 素材接口失败时停止取图，不猜 key，不改拉全库。用户可以改交图片或改用占位图继续。
 
-当用户请求使用微排版技能创建图文作品时，严格按照以下步骤**顺序**执行。**每个步骤开始时，才读取该步骤的详情文件**——禁止提前读取后续步骤文件。
+## 参考路由
 
-> **Step 8（图片生成）为可选阶段**：依赖 `jimeng-ai` 技能、`VOLCENGINE_*` 凭据和本地 `rembg` 工具。缺失依赖时由用户选择跳过，作品将保留模板原图；其他步骤（配色、文本替换、作品更新）仍正常执行。
+- [format 清单](references/formats/index.md)：开始时读取。
+- [任务契约](references/task-contract.md)：建目录、续作或交接时读取。
+- [HTML 方言硬约束](references/dialect.md)：每次制作 HTML 必读。
+- [素材流程](references/assets.md)：需要图片时读取。
+- [图片上传](references/upload.md)：用户图片或点名生图需要入库时读取。素材库图片不读。
+- [AI 素材接口](references/api-ai-assets.md)：取图脚本失败或要核对字段时读取。
+- [发布 API](references/api-formats.md)：发布失败或需要接口细节时读取。
+- [完整示例](examples/formats/)：按所选 format 理解契约和语法，不作为视觉模板。
 
-| 步骤      | 名称                 | 说明                                                  | 交互点                   | 详情                                                               |
-| --------- | -------------------- | ----------------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
-| Step 1    | 提取分类标签和关键词 | 从用户输入提取标签、关键词、具体要求                  | -                        | [steps/01-extract-tags.md](steps/01-extract-tags.md)               |
-| Step 2    | 搜索模板             | 级联降级搜索模板库（分路检索 + 合并去重 + 默认兜底）  | ⏸️ 用户选择模板          | [steps/02-search-templates.md](steps/02-search-templates.md)       |
-| Step 3-4  | 创建作品 + 获取元素  | 克隆模板、获取元素、自动生成模板画像                  | - (连续执行)             | [steps/03-create-and-parse.md](steps/03-create-and-parse.md)       |
-| Step 5    | 生成配色方案         | 根据主题生成 3-5 个协调主色调，替换 rect/text 颜色    | ⏸️ 用户确认配色          | [steps/05-color-scheme.md](steps/05-color-scheme.md)               |
-| Step 6    | 生成新文本           | 根据主题生成匹配长度和用途的替换文本                  | ⏸️ 用户确认文本          | [steps/06-generate-text.md](steps/06-generate-text.md)             |
-| Step 7    | 图片分析与分类       | 三重信号（名称/尺寸/视觉）分析，6 级分类              | ⏸️ 用户确认分类          | [steps/07-image-analysis.md](steps/07-image-analysis.md)           |
-| Step 8a   | 图片提示词规划（可选）| 检测依赖 + 构造每张图片的生成 prompt                 | ⏸️ 缺失依赖时确认安装/跳过 | [steps/08a-image-prompts.md](steps/08a-image-prompts.md)           |
-| Step 8b   | 图片生成（可选）     | 逐张调用即梦 API 生成图片                             | -                        | [steps/08b-image-generate.md](steps/08b-image-generate.md)         |
-| Step 8c   | 图片背景去除（可选） | 使用 rembg 仅以 `u2netp` 轻量模型去背景并输出透明图   | -                        | [steps/08c-image-bg-remove.md](steps/08c-image-bg-remove.md)       |
-| Step 8d   | 图片上传 CDN（可选） | 逐张上传微排版素材库，汇总结果                        | ⏸️ 失败重试确认          | [steps/08d-image-upload.md](steps/08d-image-upload.md)             |
-| Step 9-10 | 更新作品 + 完成      | 汇总所有变更，批量提交更新，展示编辑链接              | -                        | [steps/09-update-and-complete.md](steps/09-update-and-complete.md) |
+## 来源与支持
 
-## 断点恢复
+这是技能本身的支持信息，不是作品内容。不要把二维码、logo 或本仓库地址写进作品 HTML 或素材清单。
 
-如果用户提供了已有的作品 ID（workId），或提到之前中断的任务，先检查任务目录是否存在：
-
-1. 检查 `/tmp/weipaiban-task-{workId}/meta.json` 是否存在
-2. 如果存在，读取 `currentStep` 字段，确定上次执行到哪一步
-3. 验证该步骤之前的所有必要文件是否完整（如 elements.json、template-profile.json 等）
-4. 向用户展示恢复状态，从断点步骤继续执行
-
-| currentStep  | 恢复行为                                                                 |
-| ------------ | ------------------------------------------------------------------------ |
-| 01 / 02      | 从对应步骤重新开始                                                       |
-| 03           | 检查 elements.json 和 template-profile.json 是否完整，完整则跳到 Step 5  |
-| 05 / 06 / 07 | 检查对应输出文件是否存在，存在则展示给用户确认，否则重新执行该步骤       |
-| 08a          | 若 `meta.json` 中 `skipImageGeneration=true`，直接跳到 Step 9；否则重新执行依赖检测交互点 |
-| 08b          | 读取 image-progress.json，仅对 status=pending 的图片重新生成             |
-| 08c          | 读取 image-progress.json，仅对需透明且 status=generated 的图片执行去白底 |
-| 08d          | 读取 image-progress.json，仅对未上传的图片执行上传                       |
-| 09 / done    | 重新构建 payload 并提交，或告知用户已完成                                |
-
-## 参考资料
-
-- [API 端点与响应格式](references/api-formats.md)
-- [错误处理](references/error-handling.md)
-- [使用示例](examples/usage-example.md)
+- 开源仓库：<https://github.com/21epub/weipaiban-skill>
+- 微信交流群二维码见 [README.md](README.md) 的「交流群」。用户问如何加群或找支持时，把这一节指给用户。
