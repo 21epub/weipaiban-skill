@@ -22,6 +22,8 @@
 
 源码仓库：[https://github.com/21epub/weipaiban-skill](https://github.com/21epub/weipaiban-skill)
 
+许可证：[Apache License 2.0](LICENSE)。Copyright 2026 21epub。
+
 ## 交流群
 
 使用问题、格式反馈可以进微信群。用微信扫描下面的二维码加入。
